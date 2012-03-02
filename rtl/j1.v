@@ -81,8 +81,8 @@ dualsyncram #(16,13) memory(
 //	.a_addr(_pc),
 //	.a_wdata(),
 	.a_rdata(insn),
-	.b_we((~sys_rst_i) & _ramWE & (_st0[15:14] == 0)),
-	.b_addr(_st0[13:1]),
+	.b_we((~sys_rst_i) & _ramWE & (st0[15:14] == 0)),
+	.b_addr(st0[13:1]),
 	.b_rdata(ramrd),
 	.b_wdata(st1)
 	);
