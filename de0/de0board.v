@@ -47,7 +47,7 @@ wire pgm_we;
 always @(posedge clk)
 	if (reset)
 		status <= 16'h8888;
-	else if (io_we && (io_addr == 16'h1000))
+	else if (io_we && (io_addr == 16'h8000))
 		status <= io_data_w;
 
 j1 cpu(
