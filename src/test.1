@@ -1,0 +1,16 @@
+: start
+nop
+push 0x1234
+: loop
+call times-two
+dup
+push 0x1000
+store
+b loop
+nop
+b start
+: times-two
+dup
+add
+return
+

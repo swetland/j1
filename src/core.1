@@ -1,0 +1,16 @@
+( core.1 - primitives defined as microprograms )
+
+<< NOP		ALU T >>		( -- )
+<< DUP		ALU T T->N D+ >>	( a -- a a )
+<< OVER		ALU N T->N D+ >>	( a b -- a b a )
+<< NOT		ALU ~T >>		( a -- ~a )
+<< ADD		ALU T+N D- >>		( a b -- a+b )
+<< AND		ALU T&N D- >>		( a b -- a&b )
+<< XOR		ALU T^N D- >>		( a b -- a^b )
+<< OR		ALU T|N D- >>		( a b -- a|b )
+<< DROP		ALU N D- >>		( a -- )
+<< NIP		ALU T D- >>		( a b -- b )
+<< SWAP		ALU N T->N >>		( a b -- b a )
+<< RETURN 	ALU T R->PC >>
+<< LOAD		ALU [T] >>		( a -- [a] )
+<< STORE	ALU N D- N->[T] >>	( v a -- )
