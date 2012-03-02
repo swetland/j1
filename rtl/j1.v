@@ -4,6 +4,7 @@
 // changes from the original
 // - programing interface (pgm_addr,data,we) added
 // - generic dualsyncram plumbed in (altera fpga friendly)
+// - use width specifiers on constants to make altera tools happier
 
 `timescale 1ns/1ns
 
@@ -41,7 +42,7 @@ module j1(
   wire _ramWE;     // RAM write enable
 
   wire [15:0] pc_plus_1;
-  assign pc_plus_1 = pc + 1;
+  assign pc_plus_1 = pc + 16'd1;
 
   // The D and R stacks
   reg [15:0] dstack[0:31];
@@ -100,7 +101,7 @@ dualsyncram #(16,13) memory(
         4'b0111: _st0 = {16{(st1 == st0)}};
         4'b1000: _st0 = {16{($signed(st1) < $signed(st0))}};
         4'b1001: _st0 = st1 >> st0[3:0];
-        4'b1010: _st0 = st0 - 1;
+        4'b1010: _st0 = st0 - 16'd1;
         4'b1011: _st0 = rst0;
         4'b1100: _st0 = |st0[15:14] ? io_din : ramrd;
         4'b1101: _st0 = st1 << st0[3:0];
@@ -127,7 +128,7 @@ dualsyncram #(16,13) memory(
   always @*
   begin
     if (is_lit) begin                       // literal
-      _dsp = dsp + 1;
+      _dsp = dsp + 5'd1;
       _rsp = rsp;
       _rstkW = 0;
       _rstkD = _pc;
@@ -139,12 +140,12 @@ dualsyncram #(16,13) memory(
     end else begin                          // jump/call
       // predicated jump is like DROP
       if (insn[15:13] == 3'b001) begin
-        _dsp = dsp - 1;
+        _dsp = dsp - 5'd1;
       end else begin
         _dsp = dsp;
       end
       if (insn[15:13] == 3'b010) begin // call
-        _rsp = rsp + 1;
+        _rsp = rsp + 5'd1;
         _rstkW = 1;
         _rstkD = {pc_plus_1[14:0], 1'b0};
       end else begin
@@ -165,9 +166,9 @@ dualsyncram #(16,13) memory(
           (insn[15:13] == 3'b010))
         _pc = insn[12:0];
       else if (is_alu & insn[12])
-        _pc = rst0[15:1];
+        _pc = rst0[13:1];
       else
-        _pc = pc_plus_1;
+        _pc = pc_plus_1[12:0];
   end
 
   always @(posedge sys_clk_i)
