@@ -77,8 +77,11 @@ dualsyncram #(16,13) memory(
 	.a_we(pgm_we),
 	.a_addr(pgm_we ? pgm_addr[13:1] : _pc),
 	.a_wdata(pgm_data),
+//	.a_we(0),
+//	.a_addr(_pc),
+//	.a_wdata(),
 	.a_rdata(insn),
-	.b_we(_ramWE & (_st0[15:14] == 0)),
+	.b_we((~sys_rst_i) & _ramWE & (_st0[15:14] == 0)),
 	.b_addr(_st0[13:1]),
 	.b_rdata(ramrd),
 	.b_wdata(st1)
