@@ -324,7 +324,7 @@ again:
 			/* todo label references */
 			n = to_u16(tok);
 			if (n & 0x8000) {
-				emit(0x8000 | n);
+				emit(0x8000 | (~n));
 				emit(0x6600); // T=~T
 			} else {
 				emit(0x8000 | n);
