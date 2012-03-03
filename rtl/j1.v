@@ -8,6 +8,7 @@
 // - reindented w/ hardtabs and various tidying up
 // - use J0-style memory interface
 // - parameterize PC (max 13) and SP (3-8) widths
+// - add J0-style pause signal
 
 `timescale 1ns/1ns
 
@@ -17,6 +18,7 @@ module j1 #(
 	) (
 	input sys_clk_i,
 	input sys_rst_i,
+	input pause,
 
 	output [PC_BITS-1:0] insn_addr,
 	input [15:0] insn,
@@ -149,7 +151,7 @@ end
 
 always @*
 begin
-	if (sys_rst_i)
+	if (sys_rst_i | pause)
 		_pc = pc;
 	else if ((insn[15:13] == 3'b000) |
 		((insn[15:13] == 3'b001) & (|st0 == 0)) |
@@ -168,7 +170,7 @@ begin
 		dsp <= 0;
 		st0 <= 0;
 		rsp <= 0;
-	end else begin
+	end else if (!pause) begin
 		dsp <= _dsp;
 		pc <= _pc;
 		st0 <= _st0;
