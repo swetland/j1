@@ -7,14 +7,18 @@
 // - use width specifiers on constants to make altera tools happier
 // - reindented w/ hardtabs and various tidying up
 // - use J0-style memory interface
+// - parameterize PC (max 13) and SP (3-8) widths
 
 `timescale 1ns/1ns
 
-module j1(
+module j1 #(
+	parameter SP_BITS=5,
+	parameter PC_BITS=13
+	) (
 	input sys_clk_i,
 	input sys_rst_i,
 
-	output [12:0] insn_addr,
+	output [PC_BITS-1:0] insn_addr,
 	input [15:0] insn,
 
 	output io_rd,
@@ -28,23 +32,23 @@ assign insn_addr = _pc;
 
 wire [15:0] immediate = { 1'b0, insn[14:0] };
 
-reg [12:0] pc, _pc;	// Program Counter
-reg [4:0] dsp, _dsp;	// Data stack pointer
-reg [4:0] rsp, _rsp;	// Return stack pointer
-reg [15:0] st0, _st0;	// Data stack top register
+reg [PC_BITS-1:0] pc, _pc;	// Program Counter
+reg [SP_BITS-1:0] dsp, _dsp;	// Data stack pointer
+reg [SP_BITS-1:0] rsp, _rsp;	// Return stack pointer
+reg [15:0] st0, _st0;		// Data stack top register
 
-wire _dstkW;		// D stack write
-reg _rstkW;		// R stack write
-wire _ramWE;		// RAM write enable
+wire _dstkW;			// D stack write
+reg _rstkW;			// R stack write
+wire _ramWE;			// RAM write enable
 
 reg [15:0] _rstkD;
 
-wire [15:0] pc_plus_1;
-assign pc_plus_1 = pc + 16'd1;
+wire [PC_BITS-1:0] pc_plus_1;
+assign pc_plus_1 = pc + 1;
 
 // The D and R stacks
-reg [15:0] dstack[0:31];
-reg [15:0] rstack[0:31];
+reg [15:0] dstack[0:SP_BITS**2-1];
+reg [15:0] rstack[0:SP_BITS**2-1];
 always @(posedge sys_clk_i)
 begin
 	if (_dstkW)
@@ -67,7 +71,6 @@ begin
 	2'b10: st0sel = 0;		// call
 	2'b01: st0sel = 1;		// 0branch
 	2'b11: st0sel = insn[11:8];	// ALU
-	default: st0sel = 4'bxxxx;
 	endcase
 end
 
@@ -92,8 +95,8 @@ begin
 		4'b1011: _st0 = rst0;
 		4'b1100: _st0 = io_din;
 		4'b1101: _st0 = st1 << st0[3:0];
-		4'b1110: _st0 = { rsp, 3'b000, dsp };
-		4'b1111: _st0 = {16{(st1 < st0)}};
+		4'b1110: _st0 = { {(8-SP_BITS){1'b0}}, rsp, {(8-SP_BITS){1'b0}}, dsp };
+		4'b1111: _st0 = { 16{(st1 < st0)} };
 		endcase
 end
 
@@ -114,27 +117,27 @@ wire [1:0] rd = insn[3:2];  // R stack delta
 always @*
 begin
 	if (is_lit) begin
-		_dsp = dsp + 5'd1;
+		_dsp = dsp + 1;
 		_rsp = rsp;
 		_rstkW = 0;
-		_rstkD = _pc;
+		_rstkD = { {(16-PC_BITS){1'b0}}, _pc };
 	end else if (is_alu) begin
-		_dsp = dsp + { dd[1], dd[1], dd[1], dd };
-		_rsp = rsp + { rd[1], rd[1], rd[1], rd };
+		_dsp = dsp + { {(SP_BITS-2){dd[1]}}, dd };
+		_rsp = rsp + { {(SP_BITS-2){rd[1]}}, rd };
 		_rstkW = insn[6];
 		_rstkD = st0;
 	end else begin
 		if (insn[15:13] == 3'b001) begin
 			// predicated jump is like DROP
-			_dsp = dsp - 5'd1;
+			_dsp = dsp - 1;
 		end else begin
 			_dsp = dsp;
 		end
 		if (insn[15:13] == 3'b010) begin
 			// call
-			_rsp = rsp + 5'd1;
+			_rsp = rsp + 1;
 			_rstkW = 1;
-			_rstkD = { pc_plus_1[14:0], 1'b0 };
+			_rstkD = { {(16-PC_BITS){1'b0}}, pc_plus_1 };
 		end else begin
 			// jump
 			_rsp = rsp;
@@ -151,11 +154,11 @@ begin
 	else if ((insn[15:13] == 3'b000) |
 		((insn[15:13] == 3'b001) & (|st0 == 0)) |
 		(insn[15:13] == 3'b010))
-		_pc = insn[12:0];
+		_pc = insn[PC_BITS-1:0];
 	else if (is_alu & insn[12])
-		_pc = rst0[13:1];
+		_pc = rst0[PC_BITS-1:0];
 	else
-		_pc = pc_plus_1[12:0];
+		_pc = pc_plus_1;
 end
 
 always @(posedge sys_clk_i)
