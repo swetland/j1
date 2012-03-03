@@ -6,6 +6,7 @@
 // - generic dualsyncram plumbed in (altera fpga friendly)
 // - use width specifiers on constants to make altera tools happier
 // - reindented w/ hardtabs and various tidying up
+// - use J0-style memory interface
 
 `timescale 1ns/1ns
 
@@ -13,21 +14,19 @@ module j1(
 	input sys_clk_i,
 	input sys_rst_i,
 
-	input [15:0] io_din,
+	output [12:0] insn_addr,
+	input [15:0] insn,
+
 	output io_rd,
 	output io_wr,
 	output [15:0] io_addr,
 	output [15:0] io_dout,
-
-	input [15:0] pgm_addr,
-	input [15:0] pgm_data,
-	input pgm_we
+	input [15:0] io_din
 	);
 
-wire [15:0] insn;
-wire [15:0] immediate = { 1'b0, insn[14:0] };
+assign insn_addr = _pc;
 
-wire [15:0] ramrd;
+wire [15:0] immediate = { 1'b0, insn[14:0] };
 
 reg [12:0] pc, _pc;	// Program Counter
 reg [4:0] dsp, _dsp;	// Data stack pointer
@@ -72,21 +71,6 @@ begin
 	endcase
 end
 
-dualsyncram #(16,13) memory(
-	.clk(sys_clk_i),
-	.a_we(pgm_we),
-	.a_addr(pgm_we ? pgm_addr[13:1] : _pc),
-	.a_wdata(pgm_data),
-//	.a_we(0),
-//	.a_addr(_pc),
-//	.a_wdata(),
-	.a_rdata(insn),
-	.b_we((~sys_rst_i) & _ramWE & (st0[15:14] == 0)),
-	.b_addr(st0[13:1]),
-	.b_rdata(ramrd),
-	.b_wdata(st1)
-	);
-
 // Compute the new value of T.
 always @*
 begin
@@ -106,7 +90,7 @@ begin
 		4'b1001: _st0 = st1 >> st0[3:0];
 		4'b1010: _st0 = st0 - 16'd1;
 		4'b1011: _st0 = rst0;
-		4'b1100: _st0 = |st0[15:14] ? io_din : ramrd;
+		4'b1100: _st0 = io_din;
 		4'b1101: _st0 = st1 << st0[3:0];
 		4'b1110: _st0 = { rsp, 3'b000, dsp };
 		4'b1111: _st0 = {16{(st1 < st0)}};
