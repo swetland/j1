@@ -47,7 +47,7 @@ wire pgm_we;
 always @(posedge clk)
 	if (reset)
 		status <= 16'h8888;
-	else if (io_we && (io_addr == 16'h8000))
+	else if (io_we && (io_addr == 16'hF000))
 		status <= io_data_w;
 
 j1 cpu(
@@ -67,10 +67,59 @@ j1 cpu(
 
 jtagloader loader(
 	.clk(clk),
+	.reset(jtag_reset),
+
 	.addr(pgm_addr),
 	.data(pgm_data),
 	.we(pgm_we),
-	.reset(jtag_reset)
+
+	.uart_tx(io_data_w[7:0]),
+	.uart_tx_we(io_we & (io_addr[15:12] == 4'hF)),
+	.uart_busy(io_data_r[0])
+	);
+
+wire [11:0] pixel;
+wire [10:0] vram_addr;
+wire [7:0] vram_data;
+wire [7:0] line;
+wire newline, advance;
+
+reg clk25;
+
+always @(posedge clk)
+	clk25 = ~clk25;
+
+vga vga(
+	.clk(clk25),
+	.reset(1'b0),
+	.newline(newline),
+	.advance(advance),
+	.line(line),
+	.pixel(pixel),
+	.r(VGA_R),
+	.b(VGA_B),
+	.g(VGA_G),
+	.hs(VGA_HS),
+	.vs(VGA_VS)
+	);
+
+pixeldata pxd(
+	.clk(clk25),
+	.newline(newline),
+	.advance(advance),
+	.line(line),
+	.pixel(pixel),
+	.vram_data(vram_data),
+	.vram_addr(vram_addr)
+	);
+
+videoram #(8,11) vram(
+	.clk(clk),
+	.we(io_we & (io_addr[15:12] == 4'h8)),
+	.rdata(vram_data),
+	.raddr(vram_addr),
+	.wdata(io_data_w[7:0]),
+	.waddr(io_addr)
 	);
 
 endmodule

@@ -1,16 +1,38 @@
+nop
+push 0x30
+push 0x8000
+store
+push 0x8001
+store
+push 0x8002
+store
+
 : start
 nop
-push 0x1234
-: loop
-call times-two
-dup
-push 0x1000
+push 0x42
+push 0xF000
 store
-b loop
-nop
+call uart-wait-ready
+
+
+push 0x76
+push 0xF000
+store
+call uart-wait-ready
+
 b start
-: times-two
-dup
-add
+
+push 0x30
+push 0x8000
+store
+: loop
+b loop
+
+: uart-wait-ready
+push 0xF000
+load
+bz uart-is-ready
+b uart-wait-ready
+: uart-is-ready
 return
 
