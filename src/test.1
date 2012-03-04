@@ -1,58 +1,39 @@
-push 0x1234
-call print-hex
-push 0xABCD
-call print-hex
-call newline
-call exit
+: start
+	0x1234 print-hex
+	0xABCD print-hex
+	newline
+	exit
 
-: exit
-push 0xFFFF
-dup
-store
-b .
+: exit ( -- )
+	0xFFFF dup store
+	b .
 
-: newline
-push 10
-call print-char
-return
+: newline ( -- )
+	10 print-char ;
 
-: print-char
-push 0x2000
-store
-return
+: print-char ( char -- )
+	0x2000 store ;
 
-: print-hex
-dup
-push 12
-call shift-print-hex-digit
-dup
-push 8
-call shift-print-hex-digit
-dup
-push 4
-call shift-print-hex-digit
-push 15
-and
-call print-hex-digit
-return
+: print-hex ( word -- )
+	dup 12 rshift-print-hex-digit
+	dup 8 rshift-print-hex-digit
+	dup 4 rshift-print-hex-digit
+	print-hex-digit
+	;
 
-: shift-print-hex-digit
-rshift
-push 15
-and
+: rshift-print-hex-digit
+	rshift
 
 : print-hex-digit
-dup
-push 10
-lt
-bz print-hex-digit-gt-9
-push 0x30
-add
-call print-char
-return
+	15 and
+	dup
+	10 lt
+	bz print-hex-digit-gt-9
+	0x30 add
+	print-char
+	return
 : print-hex-digit-gt-9
-push 0x37
-add
-call print-char
-return
+	0x37 add
+	print-char
+	return
 

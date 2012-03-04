@@ -300,8 +300,7 @@ again:
 	free(name);
 }
 
-void assemble_branch(uint16_t op) {
-	char *tok = next();
+void assemble_branch(char *tok, uint16_t op) {
 	if (tok == END)
 		die("EOF?");
 	if (!strcmp(tok,".")) {
@@ -335,15 +334,16 @@ again:
 				die("EOF?");
 			setlabel(tok,PC);
 		} else if (!strcasecmp(tok,"CALL")) {
-			assemble_branch(0x4000);
+			assemble_branch(next(), 0x4000);
 		} else if (!strcasecmp(tok,"B")) {
-			assemble_branch(0x0000);
+			assemble_branch(next(), 0x0000);
 		} else if (!strcasecmp(tok,"BZ")) {
-			assemble_branch(0x2000);
+			assemble_branch(next(), 0x2000);
 		} else if (!strcasecmp(tok,"PUSH")) {
 			tok = next();
 			if (tok == END)
 				die("EOF?");
+implied_push:
 			/* todo label references */
 			n = to_u16(tok);
 			if (n & 0x8000) {
@@ -358,7 +358,7 @@ again:
 		} else if (!strcasecmp(tok,"LOAD")) {
 			emit(0x6000); /* ALU T */
 			emit(0x6c00); /* ALU [T] */
-		} else if (!strcasecmp(tok,"RETURN")) {
+		} else if (!strcasecmp(tok,"RETURN") || !strcmp(tok,";")) {
 			uint16_t op;
 			if (PC == 0) die("wtf");
 			op = rom[PC-1];
@@ -379,7 +379,13 @@ again:
 					goto again;
 				}
 			}
-			die("cannot process '%s'", tok);
+			if (isdigit(tok[0]) || (tok[0] == '-'))
+				goto implied_push;
+			if (isalpha(tok[0])) {
+				assemble_branch(tok, 0x4000);
+			} else {
+				die("cannot process '%s'", tok);
+			}
 		} 
 	}
 }
