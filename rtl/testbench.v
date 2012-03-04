@@ -14,7 +14,7 @@ initial begin
 	reset = 1;
 	#40
 	reset = 0;
-	#1000
+	#100000
 	$finish;
 end
 
@@ -33,6 +33,7 @@ always @(posedge clk)
 j1 cpu(
 	.sys_clk_i(clk),
 	.sys_rst_i(reset),
+	.pause(0),
 
 	.insn(rom_data),
 	.insn_addr(rom_addr),
@@ -44,9 +45,16 @@ j1 cpu(
 	.io_din(io_rdata)
 	);
 
-always @(posedge clk)
-	if (io_we)
-		$display("%h <- %h", io_addr, io_wdata);
+always @(posedge clk) begin
+	if (io_we) begin
+		if (io_addr == 16'hFFFF) begin
+			$display("\n*EXIT*");
+			$finish;
+		end
+		if (io_addr == 16'h2000)
+			$write("%c",io_wdata[7:0]);
+	end
+end	
 
 endmodule
 
