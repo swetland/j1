@@ -15,6 +15,8 @@ static char linestring[256];
 static char linebuffer[256];
 static unsigned linenumber = 0;
 
+#define TRACE(x...) do {} while(0)
+
 void die(const char *fmt, ...) {
 	va_list ap;
 	fprintf(stderr,"%s:%d: ", filename, linenumber);
@@ -66,6 +68,7 @@ void setlabel(const char *name, unsigned pc) {
 		if (!strcasecmp(l->name, name)) {
 			if (l->pc != 0xFFFF)
 				die("cannot redefine '%s'", name);
+			TRACE("amend-def('%s',0x%x)\n",name,pc);
 			l->pc = pc;
 			for (f = l->fixups; f; f = f->next) {
 				fixup_branch(name, f->pc, l->pc);
@@ -73,6 +76,7 @@ void setlabel(const char *name, unsigned pc) {
 			return;
 		}
 	}
+	TRACE("define('%s',0x%x)\n",name,pc);
 	l = malloc(sizeof(*l) + strlen(name));
 	strcpy(l->name, name);
 	l->pc = pc;
@@ -95,6 +99,7 @@ void uselabel(const char *name, unsigned pc) {
 
 	for (l = labels; l; l = l->next) {
 		if (!strcasecmp(l->name, name)) {
+			TRACE("amend-ref('%s',0x%x)\n",name,pc);
 			if (l->pc != 0xFFFF) {
 				fixup_branch(name, pc, l->pc);
 				return;
@@ -103,6 +108,7 @@ void uselabel(const char *name, unsigned pc) {
 			}
 		}
 	}
+	TRACE("reference('%s',0x%x)\n",name,pc);
 	l = malloc(sizeof(*l) + strlen(name));
 	strcpy(l->name, name);
 	l->pc = 0xFFFF;
@@ -110,6 +116,7 @@ void uselabel(const char *name, unsigned pc) {
 	l->next = labels;
 	labels = l;
 add_fixup:
+	TRACE("addfixup('%s',0x%x)\n",name,pc);
 	f = malloc(sizeof(*f));
 	f->pc = pc;
 	f->next = l->fixups;
@@ -164,6 +171,7 @@ again:
 		}
 		memcpy(linestring, linebuffer, sizeof(linebuffer));
 		linenumber++;
+		TRACE("%5d: %s",linenumber,linebuffer);
 		x = strtok_r(linebuffer, " \t\r\n", &next_saveptr);
 	} else {
 		x = strtok_r(NULL, " \t\r\n", &next_saveptr);
@@ -224,26 +232,37 @@ struct uop UOP[] = {
 
 void disassemble(char *buf, unsigned pc, unsigned op) {
 	struct uprogram *up;
+	int has_return = 0;
 	if (op & 0x8000) {
 		sprintf(buf, "PUSH %d", op & 0x7FFF);
 		return;
 	}
 	switch (op & 0xE000) {
 	case 0x0000:
-		sprintf(buf, "B 0x%04x", op & 0x1FFF);
+		sprintf(buf, "JUMP 0x%04x", (op & 0x1FFF) * 2);
 		return;
 	case 0x2000:
-		sprintf(buf, "BZ 0x%04x", op & 0x1FFF);
+		sprintf(buf, "JUMPZ 0x%04x", (op & 0x1FFF) * 2);
 		return;
 	case 0x4000:
-		sprintf(buf, "CALL 0x%04x", op & 0x1FFF);
+		sprintf(buf, "CALL 0x%04x", (op & 0x1FFF) * 2);
 		return;
 	case 0x6000:
+		if ((op & 0x104C) == 0x100C) {
+			if (op != 0x700C) {
+				has_return = 1;
+				op &= (~0x104C);
+			}
+		}
 		for (up = uprograms; up; up = up->next) {
 			if (up->op == op) {
-				sprintf(buf,"%s", up->name);
+				sprintf(buf,"%s%s", up->name, has_return ? ", RETURN" : "");
 				return;
 			}
+		}
+		if (has_return) {
+			sprintf(buf,"RETURN");
+			return;
 		}
 	}
 	sprintf(buf,"???");
@@ -285,8 +304,12 @@ void assemble_branch(uint16_t op) {
 	char *tok = next();
 	if (tok == END)
 		die("EOF?");
-	emit(op);
-	uselabel(tok, PC - 1);
+	if (!strcmp(tok,".")) {
+		emit(op | PC);
+	} else {
+		emit(op);
+		uselabel(tok, PC - 1);
+	}
 }
 	
 void assemble(void) {
@@ -328,6 +351,26 @@ again:
 				emit(0x6600); // T=~T
 			} else {
 				emit(0x8000 | n);
+			}
+		} else if (!strcasecmp(tok,"STORE")) {
+			emit(0x6123); /* ALU N D- N->[T] */
+			emit(0x6103); /* ALU D- */
+		} else if (!strcasecmp(tok,"LOAD")) {
+			emit(0x6000); /* ALU T */
+			emit(0x6c00); /* ALU [T] */
+		} else if (!strcasecmp(tok,"RETURN")) {
+			uint16_t op;
+			if (PC == 0) die("wtf");
+			op = rom[PC-1];
+			if ((op & 0xF04C) == 0x6000) {
+				/* if ALU op that doesn't touch R */
+				/* we can fold the return in */
+				rom[PC-1] |= 0x100C;
+			} else if ((op & 0xE000) == 0x4000) {
+				/* convert CALL to JUMP */	
+				rom[PC-1] &= (~0x4000);
+			} else {
+				emit(0x700C);
 			}
 		} else {
 			for (up = uprograms; up; up = up->next) {

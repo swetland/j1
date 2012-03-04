@@ -1,43 +1,58 @@
-nop
+push 0x1234
+call print-hex
+push 0xABCD
+call print-hex
+call newline
+call exit
+
+: exit
+push 0xFFFF
+dup
+store
+b .
+
+: newline
+push 10
+call print-char
+return
+
+: print-char
+push 0x2000
+store
+return
+
+: print-hex
+dup
+push 12
+call shift-print-hex-digit
+dup
+push 8
+call shift-print-hex-digit
+dup
+push 4
+call shift-print-hex-digit
+push 15
+and
+call print-hex-digit
+return
+
+: shift-print-hex-digit
+rshift
+push 15
+and
+
+: print-hex-digit
+dup
+push 10
+lt
+bz print-hex-digit-gt-9
 push 0x30
-push 0x8000
-store
-push 0x8001
-store
-push 0x8002
-store
-
-push 1
-nop
-load
-push 0xE000
-store
-
-: start
-push 0x42
-push 0xF000
-store
-call uart-wait-ready
-
-push 0x76
-push 0xF000
-store
-call uart-wait-ready
-
-b start
-
-push 0x30
-push 0x8000
-store
-: loop
-b loop
-
-: uart-wait-ready
-push 0xF000
-nop
-load
-bz uart-is-ready
-b uart-wait-ready
-: uart-is-ready
+add
+call print-char
+return
+: print-hex-digit-gt-9
+push 0x37
+add
+call print-char
 return
 

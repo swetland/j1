@@ -8,10 +8,13 @@
 << AND		ALU T&N D- >>		( a b -- a&b )
 << XOR		ALU T^N D- >>		( a b -- a^b )
 << OR		ALU T|N D- >>		( a b -- a|b )
+<< LSHIFT	ALU N<<T D- >>		( a b -- a<<b )
+<< RSHIFT	ALU N>>T D- >>		( a b -- a>>b )
 << EQ		ALU N==T D- >>		( a b -- a==b )
+<< LT		ALU N<T D- >>		( a b -- a<b )
 << DROP		ALU N D- >>		( a -- )
 << NIP		ALU T D- >>		( a b -- b )
 << SWAP		ALU N T->N >>		( a b -- b a )
-<< RETURN 	ALU T R->PC >>
+<< RETURN 	ALU T R- R->PC >>
 << LOAD		ALU [T] >>		( a -- [a] )
 << STORE	ALU N D- N->[T] >>	( v a -- )
